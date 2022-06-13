@@ -3,31 +3,31 @@
 
 1. `react`
 
-  > `react` 基础包
+    > `react` 基础包
 
 2. `react-dom`
 
-  > `react` 渲染器，这里指的是浏览器和 `Node` 环境的渲染器
+    > `react` 渲染器，这里指的是浏览器和 `Node` 环境的渲染器
 
 3. `react-reconciler`
 
-  > 管理 `react` 应用的输入、输出，将输入信号转换成输出信号传递给渲染器
+    > 管理 `react` 应用的输入、输出，将输入信号转换成输出信号传递给渲染器
 
-  - 接受输入(`scheduleUpdateOnFiber`), 将 `fiber` 树生成逻辑封装到一个回调函数中(涉及 `fiber` 树形结构, `fiber.updateQueue` 队列, 调和算法等),
+    - 接受输入(`scheduleUpdateOnFiber`), 将 `fiber` 树生成逻辑封装到一个回调函数中(涉及 `fiber` 树形结构, `fiber.updateQueue` 队列, 调和算法等),
 
-  - 把此回调函数( `performSyncWorkOnRoot` 或 `performConcurrentWorkOnRoot` )送入 `scheduler` 进行调度
+    - 把此回调函数( `performSyncWorkOnRoot` 或 `performConcurrentWorkOnRoot` )送入 `scheduler` 进行调度
 
-  - `scheduler` 会控制回调函数执行的时机, 回调函数执行完成后得到全新的 `fiber` 树
+    - `scheduler` 会控制回调函数执行的时机, 回调函数执行完成后得到全新的 `fiber` 树
 
-  - 再调用渲染器(如 `react-dom` , `react-native` 等)将 fiber 树形结构最终反映到界面上
+    - 再调用渲染器(如 `react-dom` , `react-native` 等)将 fiber 树形结构最终反映到界面上
 
 4. `scheduler`
 
-  > 调度中心，控制由 `react-reconciler` 送入的回调函数的执行时机, 在 `concurrent` 模式下可以实现任务分片
+    > 调度中心，控制由 `react-reconciler` 送入的回调函数的执行时机, 在 `concurrent` 模式下可以实现任务分片
 
-  - 核心任务就是执行回调(回调函数由 `react-reconciler` 提供)
+    - 核心任务就是执行回调(回调函数由 `react-reconciler` 提供)
 
-  - 通过控制回调函数的执行时机, 来达到任务分片的目的, 实现可中断渲染( `concurrent` 模式下才有此特性)
+    - 通过控制回调函数的执行时机, 来达到任务分片的目的, 实现可中断渲染( `concurrent` 模式下才有此特性)
 
 ## 架构分层
 
@@ -79,11 +79,11 @@
 
 1. 任务调度循环
 
-  源码位于 `Scheduler.js`, 它是 `react` 应用得以运行的保证, 它需要循环调用, 控制所有任务(task)的调度.
+    源码位于 `Scheduler.js`, 它是 `react` 应用得以运行的保证, 它需要循环调用, 控制所有任务(task)的调度.
 
 2. `fiber` 构造循环
 
-  源码位于 `ReactFiberWorkLoop.js`, 控制 `fiber` 树的构造, 整个过程是一个深度优先遍历
+    源码位于 `ReactFiberWorkLoop.js`, 控制 `fiber` 树的构造, 整个过程是一个深度优先遍历
 
 两大循环的分工可以总结为: 大循环(任务调度循环)负责**调度task**, 小循环( `fiber` 构造循环)负责**实现task**
 
@@ -95,3 +95,53 @@
 
     - `fiber` 构造循环是 `task` 的实现环节之一, 循环完成之后会构造出最新的 `fiber` 树.
     - `commitRoot` 是 `task` 的实现环节之二, 把最新的 `fiber` 树最终渲染到页面上, `task` 完成.
+
+## 高频率对象
+
+### `react` 包
+
+1. `ReactElement` 对象
+
+    > 其 type 定义在`shared`包中.
+
+    所有采用`jsx`语法书写的节点, 都会被编译器转换, 最终会以 `React.createElement(...)` 的方式创建一个 `ReactElement` 对象
+
+    ```js
+    export type ReactElement = {
+      // 用于辨别ReactElement对象
+      $$typeof: any,
+
+      // 内部属性
+      type: any, // 表明其种类
+      key: any,
+      ref: any,
+      props: any,
+
+      // ReactFiber 记录创建本对象的Fiber节点, 还未与Fiber树关联之前, 该属性为null
+      _owner: any,
+
+      // __DEV__ dev环境下的一些额外信息, 如文件路径, 文件名, 行列信息等
+      _store: {validated: boolean, ...},
+      _self: React$Element<any>,
+      _shadowChildren: any,
+      _source: Source,
+    };
+    ```
+
+    需要特别注意 2 个属性:
+
+    1. `key` 属性在 `reconciler` 阶段会用到, 目前只需要知道所有的 `ReactElement` 对象都有 `key` 属性(且其默认值是 `null`, 这点十分重要, 在`diff算法`中会使用到).
+
+    2. `type` 属性决定了节点的种类:
+
+      - 它的值可以是字符串(代表div,span等 dom 节点), 函数(代表function, class等节点), 或者 react 内部定义的节点类型(portal,context,fragment等)
+
+      - 在 `reconciler` 阶段, 会根据 `type` 执行不同的逻辑(在 `fiber` 构建阶段详细解读).
+
+          - 如 `type` 是一个字符串类型, 则直接使用.
+
+          - 如 `type` 是一个 `ReactComponent` 类型, 则会调用其 `render` 方法获取子节点.
+
+          - 如 `type` 是一个 `function` 类型,则会调用该方法获取子节点
+
+
