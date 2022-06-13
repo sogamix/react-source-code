@@ -72,3 +72,26 @@
   - 实现 `HostConfig` 协议(源码在 ReactDOMHostConfig.js 中), 能够将 `react-reconciler` 包构造出来的
   
   - `fiber` 树表现出来, 生成` dom 节点`(浏览器中), 生成字符串(ssr)
+
+[现将内核 3 个包的主要职责和调用关系, 绘制到一张概览图上:](./react.png)
+
+## 工作循环
+
+1. 任务调度循环
+
+  源码位于 `Scheduler.js`, 它是 `react` 应用得以运行的保证, 它需要循环调用, 控制所有任务(task)的调度.
+
+2. `fiber` 构造循环
+
+  源码位于 `ReactFiberWorkLoop.js`, 控制 `fiber` 树的构造, 整个过程是一个深度优先遍历
+
+两大循环的分工可以总结为: 大循环(任务调度循环)负责**调度task**, 小循环( `fiber` 构造循环)负责**实现task**
+
+1. 输入: 将每一次更新(如: 新增, 删除, 修改节点之后)视为一次更新需求(目的是要更新 `DOM节点`).
+
+2. 注册调度任务: `react-reconciler` 收到更新需求之后, 并不会立即构造 `fiber` 树, 而是去调度中心 `scheduler` 注册一个新任务 `task`, 即把更新需求转换成一个 `task`.
+
+3. 执行调度任务(输出): 调度中心 `scheduler` 通过任务调度循环来执行 `task` ( `task` 的执行过程又回到了`react-reconciler` 包中).
+
+    - `fiber` 构造循环是 `task` 的实现环节之一, 循环完成之后会构造出最新的 `fiber` 树.
+    - `commitRoot` 是 `task` 的实现环节之二, 把最新的 `fiber` 树最终渲染到页面上, `task` 完成.
