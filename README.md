@@ -144,4 +144,59 @@
 
           - 如 `type` 是一个 `function` 类型,则会调用该方法获取子节点
 
+[ReactElement内存结构](./ReactElement.png)
 
+### `react-reconciler` 包
+
+1. `Fiber` 对象
+
+    类型的定义在 [ReactInternalTypes.js](./packages/react-reconciler/src/ReactInternalTypes.js)
+
+    ```js
+    // 一个Fiber对象代表一个即将渲染或者已经渲染的组件(ReactElement), 一个组件可能对应两个fiber(current和WorkInProgress)
+    // 单个属性的解释在后文(在注释中无法添加超链接)
+    export type Fiber = {|
+      tag: WorkTag,
+      key: null | string,
+      elementType: any,
+      type: any,
+      stateNode: any,
+      return: Fiber | null,
+      child: Fiber | null,
+      sibling: Fiber | null,
+      index: number,
+      ref:
+        | null
+        | (((handle: mixed) => void) & { _stringRef: ?string, ... })
+        | RefObject,
+      pendingProps: any, // 从`ReactElement`对象传入的 props. 用于和`fiber.memoizedProps`比较可以得出属性是否变动
+      memoizedProps: any, // 上一次生成子节点时用到的属性, 生成子节点之后保持在内存中
+      updateQueue: mixed, // 存储state更新的队列, 当前节点的state改动之后, 都会创建一个update对象添加到这个队列中.
+      memoizedState: any, // 用于输出的state, 最终渲染所使用的state
+      dependencies: Dependencies | null, // 该fiber节点所依赖的(contexts, events)等
+      mode: TypeOfMode, // 二进制位Bitfield,继承至父节点,影响本fiber节点及其子树中所有节点. 与react应用的运行模式有关(有ConcurrentMode, BlockingMode, NoMode等选项).
+
+      // Effect 副作用相关
+      flags: Flags, // 标志位
+      subtreeFlags: Flags, //替代16.x版本中的 firstEffect, nextEffect. 当设置了 enableNewReconciler=true才会启用
+      deletions: Array<Fiber> | null, // 存储将要被删除的子节点. 当设置了 enableNewReconciler=true才会启用
+
+      nextEffect: Fiber | null, // 单向链表, 指向下一个有副作用的fiber节点
+      firstEffect: Fiber | null, // 指向副作用链表中的第一个fiber节点
+      lastEffect: Fiber | null, // 指向副作用链表中的最后一个fiber节点
+
+      // 优先级相关
+      lanes: Lanes, // 本fiber节点的优先级
+      childLanes: Lanes, // 子节点的优先级
+      alternate: Fiber | null, // 指向内存中的另一个fiber, 每个被更新过fiber节点在内存中都是成对出现(current和workInProgress)
+
+      // 性能统计相关(开启enableProfilerTimer后才会统计)
+      // react-dev-tool会根据这些时间统计来评估性能
+      actualDuration?: number, // 本次更新过程, 本节点以及子树所消耗的总时间
+      actualStartTime?: number, // 标记本fiber节点开始构建的时间
+      selfBaseDuration?: number, // 用于最近一次生成本fiber节点所消耗的时间
+      treeBaseDuration?: number, // 生成子树所消耗的时间的总和
+    |};
+    ```
+
+[Fiber结构](./Fiber.png)
