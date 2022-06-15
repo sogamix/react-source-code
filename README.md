@@ -231,3 +231,41 @@
     |};
     ```
     [UpdateQueue](./UpdateQueue.png)
+
+3. `Hook` 对象
+
+    `Hook` 用于 `function` 组件中，常用的 `api` 有 `useState` , `useEffect` , `useCallback` 等, 官方一共定义了14 种 `Hook` 类型
+
+    这些 api 背后都会创建一个 `Hook` 对象
+
+    ```js
+    export type Hook = {|
+      memoizedState: any, // 内存状态, 用于输出成最终的fiber树
+      baseState: any, // 基础状态, 当Hook.queue更新过后, baseState也会更新
+      baseQueue: Update<any, any> | null, // 基础状态队列, 在reconciler阶段会辅助状态合并
+      queue: UpdateQueue<any, any> | null, //  指向一个Update队列
+      next: Hook | null, // 指向该function组件的下一个Hook对象, 使得多个Hook之间也构成了一个链表
+    |};
+
+    type Update<S, A> = {|
+      lane: Lane,
+      action: A,
+      eagerReducer: ((S, A) => S) | null,
+      eagerState: S | null,
+      next: Update<S, A>,
+      priority?: ReactPriorityLevel,
+    |};
+
+    type UpdateQueue<S, A> = {|
+      pending: Update<S, A> | null,
+      dispatch: (A => mixed) | null,
+      lastRenderedReducer: ((S, A) => S) | null,
+      lastRenderedState: S | null,
+    |};
+    ```
+
+    `Hook` 与 `fiber` 的关系:
+
+      在 `fiber` 对象中有一个属性 `fiber.memoizedState` 指向 `fiber` 节点的内存状态. 在 `function` 类型的组件中, `fiber.memoizedState` 就指向 `Hook` 队列( `Hook` 队列保存了 `function` 类型的组件状态)
+
+    [Hook](./Hook.png)
