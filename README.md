@@ -269,3 +269,22 @@
       在 `fiber` 对象中有一个属性 `fiber.memoizedState` 指向 `fiber` 节点的内存状态. 在 `function` 类型的组件中, `fiber.memoizedState` 就指向 `Hook` 队列( `Hook` 队列保存了 `function` 类型的组件状态)
 
     [Hook](./Hook.png)
+
+### Scheduler 包
+
+`scheduler` 包负责调度, 在内部维护一个任务队列(`taskQueue`). 这个队列是一个**最小堆数组**(详见React 算法之堆排序), 其中存储了 `task` 对象
+
+1. Task 对象
+
+    ```js
+    var newTask = {
+      id: taskIdCounter++, // 位移标识
+      callback, // task 最核心的字段, 指向react-reconciler包所提供的回调函数
+      priorityLevel, // 优先级
+      startTime, // 一个时间戳,代表 task 的开始时间(创建时间 + 延时时间)
+      expirationTime, // 过期时间
+      sortIndex: -1, // 控制 task 在队列中的次序, 值越小的越靠前
+    }
+    ```
+    注意 `task` 中没有 `next` 属性, 它不是一个链表, 其顺序是通过堆排序来实现的(**小顶堆数组, 始终保证数组中的第一个 `task` 对象优先级最高**).
+
